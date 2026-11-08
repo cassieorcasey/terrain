@@ -3,7 +3,7 @@ import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
 import type { Graph, GEdge, GNode, Island } from '../lib/graph';
-import { shorePoint } from '../lib/graph';
+import { islandMembers, islandOf, nid, shorePoint } from '../lib/graph';
 import type { Stack } from '../lib/types';
 import { categoryIcon, faviconUrl, initials } from './icons';
 
@@ -54,9 +54,9 @@ export function TerrainMap({ ref, graph, stack, selected, lit, litStrong, padRig
     if (!svg || !z) return;
     const W = svg.clientWidth - pads.current.padRight, H = svg.clientHeight - pads.current.padBottom;
     const top = 72; // ruang untuk bar atas dan pencarian
-    const k = Math.min(maxK, (W - 40) / (x1 - x0), (H - top - 24) / (y1 - y0));
+    const k = Math.min(maxK, (W - 40) / (x1 - x0), (H - top - 72) / (y1 - y0));
     const tx = W / 2 - k * (x0 + x1) / 2;
-    const ty = top + (H - top) / 2 - k * (y0 + y1) / 2;
+    const ty = top + (H - top - 48) / 2 - k * (y0 + y1) / 2;
     const target = zoomIdentity.translate(tx, ty).scale(k);
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sel = select(svg);
@@ -69,11 +69,17 @@ export function TerrainMap({ ref, graph, stack, selected, lit, litStrong, padRig
     fitBox(b.x0, b.y0, b.x1, b.y1, 1.1, animate);
   }, [graph, fitBox]);
 
+  /** Zoom ke satu pulau beserta hub di selatnya, supaya seluruh anggotanya terlihat. */
   const focusIsland = useCallback((id: string) => {
     const is = graph.islandById.get(id);
     if (!is) return;
     const R = is.R * 1.12;
-    fitBox(is.cx - R, is.cy - R - 30, is.cx + R, is.cy + R, 1.4);
+    let x0 = is.cx - R, y0 = is.cy - R - 30, x1 = is.cx + R, y1 = is.cy + R + 30;
+    for (const n of islandMembers(graph, id)) {
+      x0 = Math.min(x0, n.x - n.w / 2); x1 = Math.max(x1, n.x + n.w / 2);
+      y0 = Math.min(y0, n.y + n.dy - n.h / 2); y1 = Math.max(y1, n.y + n.dy + n.h / 2);
+    }
+    fitBox(x0, y0, x1, y1, 1.4);
   }, [graph, fitBox]);
 
   const focusNode = useCallback((id: string) => {
@@ -133,7 +139,11 @@ export function TerrainMap({ ref, graph, stack, selected, lit, litStrong, padRig
       <g transform={t.toString()}>
         {graph.islands.map(is => (
           <IslandShape key={is.cat.id} is={is} k={t.k} far={far}
-            onTap={() => (far ? focusIsland(is.cat.id) : onSelect(null))} />
+            count={islandMembers(graph, is.cat.id).filter(n => n.kind === 'tool').length}
+            selected={islandOf(selected) === is.cat.id}
+            dim={!!lit && islandOf(selected) !== is.cat.id && !!islandOf(selected)}
+            onLand={() => (far ? focusIsland(is.cat.id) : onSelect(null))}
+            onName={() => { onSelect(nid.island(is.cat.id)); setTimeout(() => focusIsland(is.cat.id), 30); }} />
         ))}
 
         <g className="edges">
@@ -167,25 +177,37 @@ export function TerrainMap({ ref, graph, stack, selected, lit, litStrong, padRig
 
 /* ───────── Pulau ───────── */
 
-function IslandShape({ is, k, far, onTap }: { is: Island; k: number; far: boolean; onTap(): void }) {
+interface IslandProps {
+  is: Island; k: number; far: boolean; count: number; selected: boolean; dim: boolean;
+  onLand(): void; onName(): void;
+}
+
+function IslandShape({ is, k, far, count, selected, dim, onLand, onName }: IslandProps) {
   const Icon = categoryIcon(is.cat.icon);
   const iconSize = is.R * 0.62;
   const fontSize = Math.max(19, 14 / k);
+  const sub = fontSize * 0.62;
   const top = is.cat.row === 0;
-  const labelY = top ? is.cy - is.R * 1.09 - fontSize * 0.45 : is.cy + is.R * 1.09 + fontSize * 1.05;
+  const labelY = top ? is.cy - is.R * 1.09 - fontSize * 0.45 - sub * 1.3 : is.cy + is.R * 1.09 + fontSize * 1.05;
   return (
-    <g className="island" data-cat={is.cat.id}>
+    <g className={`island${selected ? ' selected' : ''}${dim ? ' dim' : ''}`} data-cat={is.cat.id}>
       <path className="island-fill" d={is.path}
-        onClick={e => { e.stopPropagation(); onTap(); }}
-        role={far ? 'button' : undefined}
-        aria-label={far ? `Masuk ke ${is.cat.name}` : undefined} />
+        onClick={e => { e.stopPropagation(); onLand(); }}
+        aria-hidden="true" />
       <g className="island-mark" transform={`translate(${is.cx - iconSize / 2},${is.cy - iconSize / 2})`} aria-hidden="true">
         <Icon width={iconSize} height={iconSize} strokeWidth={1.1} absoluteStrokeWidth={false} />
       </g>
-      <text className="island-label" x={is.cx} y={labelY} textAnchor="middle" style={{ fontSize }}
-        onClick={e => { e.stopPropagation(); onTap(); }}>
-        {is.cat.name}
-      </text>
+      <g className="island-name" role="button" tabIndex={0} aria-pressed={selected}
+        aria-label={`${is.cat.name}, ${count} tool. Tampilkan semua anggotanya`}
+        onClick={e => { e.stopPropagation(); onName(); }}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onName(); } }}>
+        <text className="island-label" x={is.cx} y={labelY} textAnchor="middle" style={{ fontSize }}>
+          {is.cat.name}
+        </text>
+        <text className="island-count" x={is.cx} y={labelY + sub * 1.45} textAnchor="middle" style={{ fontSize: sub }}>
+          {count} tool
+        </text>
+      </g>
     </g>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Drawer } from 'vaul';
 import { ArrowUpRight, X } from 'lucide-react';
-import { nid, type Graph } from '../lib/graph';
+import { islandOf, nid, type Graph } from '../lib/graph';
 import { ROLE_LABEL, STATUS_LABEL, type Stack } from '../lib/types';
 import { categoryIcon, faviconUrl, hostOf, initials } from './icons';
 
@@ -54,11 +54,79 @@ export function DetailPanel({ id, graph, stack, isDesktop, onSelect }: Props) {
 }
 
 function Body({ id, graph, stack, onSelect }: { id: string; graph: Graph; stack: Stack; onSelect: Props['onSelect'] }) {
+  const cat = islandOf(id);
+  if (cat) return <IslandBody catId={cat} stack={stack} onSelect={onSelect} />;
   const n = graph.byId.get(id);
   if (!n) return null;
   if (n.kind === 'tool') return <ToolBody toolId={n.ref} stack={stack} onSelect={onSelect} />;
   if (n.kind === 'model') return <ModelBody modelId={n.ref} stack={stack} onSelect={onSelect} />;
   return <NeedBody needId={n.ref} stack={stack} onSelect={onSelect} />;
+}
+
+/* ───────── Wilayah ───────── */
+
+function IslandBody({ catId, stack, onSelect }: { catId: string; stack: Stack; onSelect: Props['onSelect'] }) {
+  const cat = stack.categories.find(c => c.id === catId)!;
+  const Icon = categoryIcon(cat.icon);
+  const names = new Map(stack.categories.map(c => [c.id, c.name]));
+  const here = stack.placements.filter(p => p.categoryId === catId).sort((a, b) => a.sort - b.sort);
+  const regionsOf = (toolId: string) => stack.placements.filter(p => p.toolId === toolId).map(p => p.categoryId);
+  const local = here.filter(p => regionsOf(p.toolId).length === 1);
+  const hubs = here.filter(p => regionsOf(p.toolId).length > 1);
+
+  // Kelompokkan tool daratan per group_name, urut sesuai Notion.
+  const groups: { name: string; items: typeof local }[] = [];
+  for (const p of local) {
+    const name = p.group ?? '';
+    let g = groups.find(x => x.name === name);
+    if (!g) { g = { name, items: [] }; groups.push(g); }
+    g.items.push(p);
+  }
+
+  const row = (p: (typeof here)[number], extra?: string) => {
+    const tool = stack.tools.find(t => t.id === p.toolId)!;
+    return (
+      <li key={p.toolId}>
+        <button type="button" className="link-row tool-row" onClick={() => onSelect(nid.tool(tool.id))}>
+          <ToolBadge name={tool.name} url={tool.url} />
+          <span className="tool-row-text">
+            {tool.name}
+            {(extra ?? p.description) && <small>{extra ?? p.description}</small>}
+          </span>
+        </button>
+      </li>
+    );
+  };
+
+  return (
+    <>
+      <header className="sheet-head" data-cat={catId}>
+        <p className="sheet-eyebrow island-eyebrow"><Icon size={14} strokeWidth={1.8} />Wilayah</p>
+        <Drawer.Title className="sheet-title">{cat.name}</Drawer.Title>
+        <p className="sheet-meta">
+          {here.length} tool · {local.length} hanya di sini, {hubs.length} hub
+        </p>
+        {cat.description && <p className="sheet-note">{cat.description}</p>}
+      </header>
+
+      {groups.map(g => (
+        <section className="sheet-section" key={g.name || '_'}>
+          <h3>{g.name || (groups.length > 1 ? 'Lainnya' : 'Hanya di wilayah ini')}</h3>
+          <ul className="links">{g.items.map(p => row(p))}</ul>
+        </section>
+      ))}
+
+      {hubs.length > 0 && (
+        <section className="sheet-section">
+          <h3>Hub di selat</h3>
+          <p className="section-hint">Dipakai juga di wilayah lain, jadi letaknya di antara pulau.</p>
+          <ul className="links">
+            {hubs.map(p => row(p, 'Juga di ' + regionsOf(p.toolId).filter(c => c !== catId).map(c => names.get(c)).join(', ')))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
 }
 
 /* ───────── Tool ───────── */

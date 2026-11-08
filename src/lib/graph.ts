@@ -103,7 +103,24 @@ export const nid = {
   tool: (id: string) => `t:${id}`,
   model: (id: string) => `m:${id}`,
   need: (id: string) => `n:${id}`,
+  island: (id: string) => `i:${id}`,
 };
+
+export const islandOf = (selected: string | null) => (selected?.startsWith('i:') ? selected.slice(2) : null);
+
+/** Semua anggota satu wilayah: tool di daratan, hub yang memakainya, dan (Study) model serta kebutuhan. */
+export function islandMembers(g: Graph, cat: string) {
+  return g.nodes.filter(n => n.regions.includes(cat));
+}
+
+export function relatedIsland(g: Graph, cat: string) {
+  const nodes = new Set(islandMembers(g, cat).map(n => n.id));
+  const edges = new Set<string>();
+  for (const e of g.edges) {
+    if (e.kind === 'bridge' ? e.b === cat : nodes.has(e.a) && nodes.has(e.b)) edges.add(e.id);
+  }
+  return { nodes, edges };
+}
 
 /* ───────── Acak deterministik ───────── */
 

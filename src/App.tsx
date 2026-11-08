@@ -4,7 +4,7 @@ import { LogOut, Maximize } from 'lucide-react';
 import { DEMO } from './config';
 import { sb } from './lib/supabase';
 import { fromSeed, fromSupabase, withoutArchived } from './lib/data';
-import { buildGraph, related } from './lib/graph';
+import { buildGraph, islandOf, related, relatedIsland } from './lib/graph';
 import { buildIndex, search } from './lib/search';
 import { useMedia } from './lib/hooks';
 import type { Stack } from './lib/types';
@@ -78,6 +78,8 @@ function Terrain({ raw }: { raw: Stack }) {
       return { nodes, edges, strong: true };
     }
     if (query.trim().length >= 2) return { nodes: new Set<string>(), edges: new Set<string>(), strong: true };
+    const cat = islandOf(selected);
+    if (cat) return { ...relatedIsland(graph, cat), strong: true };
     if (selected) return { ...related(graph, selected), strong: false };
     return null;
   }, [hits, query, selected, graph]);

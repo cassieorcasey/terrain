@@ -114,8 +114,18 @@ code { font: 0.92em ui-monospace, 'SF Mono', Menlo, monospace; }
 .island-mark { color: var(--cat); opacity: var(--island-mark); pointer-events: none; }
 .island-label {
   fill: color-mix(in oklab, var(--cat) 70%, var(--text));
-  font-weight: 700; letter-spacing: -0.02em; cursor: pointer;
+  font-weight: 700; letter-spacing: -0.02em;
 }
+.island-name { cursor: pointer; outline: none; }
+.island-name:hover .island-label { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.island-name:focus-visible .island-label { text-decoration: underline; }
+.island-count { fill: var(--muted); font-weight: 500; }
+.island.selected .island-fill {
+  stroke: var(--cat); stroke-width: 2.5px;
+  fill: color-mix(in oklab, var(--cat) calc(var(--island-fill) + 6%), transparent);
+}
+.island.dim { opacity: 0.45; }
+.island { transition: opacity 0.22s; }
 .group-label {
   fill: color-mix(in oklab, var(--cat, var(--muted)) 55%, var(--muted)); font-size: 11px; font-weight: 600;
   paint-order: stroke; stroke: var(--sea); stroke-width: 3px; stroke-linejoin: round;
@@ -374,3 +384,10 @@ code { font: 0.92em ui-monospace, 'SF Mono', Menlo, monospace; }
 @media (prefers-reduced-motion: reduce) {
   .node .lift, .node, .edge, .topbar, .corner { transition: none; }
 }
+
+/* ───────── Panel wilayah ───────── */
+.island-eyebrow { display: flex; align-items: center; gap: 6px; color: color-mix(in oklab, var(--cat) 75%, var(--text)); }
+.tool-row { align-items: center; gap: 12px; }
+.tool-row-text { display: flex; flex-direction: column; min-width: 0; }
+.tool-row-text small { font-weight: 400; line-height: 1.35; margin-top: 1px; }
+.section-hint { margin: -4px 0 10px; font-size: 13.5px; color: var(--muted); }
