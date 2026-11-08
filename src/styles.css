@@ -190,7 +190,8 @@ code { font: 0.92em ui-monospace, 'SF Mono', Menlo, monospace; }
   justify-self: start; display: flex; align-items: center; gap: 10px; height: 44px;
   font-weight: 700; font-size: 17px; letter-spacing: -0.02em;
 }
-.logo { border-radius: 8px; }
+.logo { display: block; }
+.login-card .logo { margin: 0 auto; }
 .top-actions { justify-self: end; display: flex; gap: 8px; height: 44px; align-items: center; }
 .chip {
   display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 99px;
