@@ -1,5 +1,10 @@
 -- Dihasilkan oleh scripts/build_seed.py dari data/seed.json. Jangan diedit manual.
+-- Aman dijalankan ulang: isi lama dikosongkan dulu. JANGAN jalankan lagi setelah
+-- data mulai diedit lewat form (v1b), karena perubahan dari app akan terhapus.
 begin;
+
+truncate toolstack.need_targets, toolstack.needs, toolstack.models,
+         toolstack.placements, toolstack.tools, toolstack.categories restart identity;
 
 insert into toolstack.categories (id, name, icon, description, grid_row, grid_col) values ('study', 'Study Tools', 'presentation', null, 0, 0);
 insert into toolstack.categories (id, name, icon, description, grid_row, grid_col) values ('home', 'Home Base Tools', 'home', null, 0, 1);

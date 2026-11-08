@@ -4,11 +4,16 @@
 
 create schema if not exists toolstack;
 
-create type toolstack.item_status as enum ('aktif', 'dicoba', 'arsip');
-create type toolstack.target_role as enum ('utama', 'alternatif', 'tugas_kompleks');
+-- Aman dijalankan ulang: tipe, tabel, indeks, dan policy dilewati bila sudah ada.
+do $$ begin
+  create type toolstack.item_status as enum ('aktif', 'dicoba', 'arsip');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create type toolstack.target_role as enum ('utama', 'alternatif', 'tugas_kompleks');
+exception when duplicate_object then null; end $$;
 
 -- Wilayah. grid_row/grid_col (0 atau 1) dikunci dari hasil layout.py.
-create table toolstack.categories (
+create table if not exists toolstack.categories (
   id          text primary key,
   name        text not null,
   icon        text not null,
@@ -18,7 +23,7 @@ create table toolstack.categories (
   unique (grid_row, grid_col)
 );
 
-create table toolstack.tools (
+create table if not exists toolstack.tools (
   id         text primary key,
   name       text not null,
   url        text,
@@ -29,7 +34,7 @@ create table toolstack.tools (
 );
 
 -- Peran satu tool di satu wilayah.
-create table toolstack.placements (
+create table if not exists toolstack.placements (
   id           bigint generated always as identity primary key,
   tool_id      text not null references toolstack.tools(id) on delete cascade,
   category_id  text not null references toolstack.categories(id) on delete cascade,
@@ -41,7 +46,7 @@ create table toolstack.placements (
   unique (tool_id, category_id)
 );
 
-create table toolstack.models (
+create table if not exists toolstack.models (
   id               text primary key,
   family           text not null,
   version          text not null,
@@ -50,14 +55,14 @@ create table toolstack.models (
   sort_order       integer not null default 0
 );
 
-create table toolstack.needs (
+create table if not exists toolstack.needs (
   id         text primary key,
   name       text not null,
   sort_order integer not null default 0
 );
 
 -- Kebutuhan menunjuk ke model ATAU tool, tepat satu.
-create table toolstack.need_targets (
+create table if not exists toolstack.need_targets (
   id         bigint generated always as identity primary key,
   need_id    text not null references toolstack.needs(id) on delete cascade,
   model_id   text references toolstack.models(id) on delete cascade,
@@ -68,9 +73,9 @@ create table toolstack.need_targets (
   check ((model_id is null) <> (tool_id is null))
 );
 
-create index on toolstack.placements (category_id);
-create index on toolstack.models (provider_tool_id);
-create index on toolstack.need_targets (need_id);
+create index if not exists placements_category_id_idx on toolstack.placements (category_id);
+create index if not exists models_provider_tool_id_idx on toolstack.models (provider_tool_id);
+create index if not exists need_targets_need_id_idx on toolstack.need_targets (need_id);
 
 -- Akses: hanya pengguna yang login (sign-up dinonaktifkan di project StudyIng).
 grant usage on schema toolstack to authenticated;
@@ -81,6 +86,7 @@ declare t text;
 begin
   foreach t in array array['categories','tools','placements','models','needs','need_targets'] loop
     execute format('alter table toolstack.%I enable row level security', t);
+    execute format('drop policy if exists "baca untuk pengguna login" on toolstack.%I', t);
     execute format(
       'create policy "baca untuk pengguna login" on toolstack.%I for select to authenticated using (true)', t);
   end loop;

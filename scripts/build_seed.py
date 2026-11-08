@@ -83,7 +83,11 @@ def arr(items):
 
 def build_sql(data, layout):
     out = ["-- Dihasilkan oleh scripts/build_seed.py dari data/seed.json. Jangan diedit manual.",
-           "begin;", ""]
+           "-- Aman dijalankan ulang: isi lama dikosongkan dulu. JANGAN jalankan lagi setelah",
+           "-- data mulai diedit lewat form (v1b), karena perubahan dari app akan terhapus.",
+           "begin;", "",
+           "truncate toolstack.need_targets, toolstack.needs, toolstack.models,",
+           "         toolstack.placements, toolstack.tools, toolstack.categories restart identity;", ""]
     for c in data["categories"]:
         r, col = layout[c["id"]]
         out.append(
